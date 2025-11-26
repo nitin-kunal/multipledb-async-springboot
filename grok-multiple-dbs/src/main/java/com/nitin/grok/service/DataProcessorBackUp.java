@@ -226,3 +226,56 @@ public class DataProcessorBackUp {
     
     
 }
+
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+ class ApiResponse<T> {
+    private boolean success;
+    private T data;
+    private ErrorInfo error;
+    private LocalDateTime timestamp;
+
+    // Default constructor sets timestamp
+    public ApiResponse() {
+        this.timestamp = LocalDateTime.now();
+    }
+
+    // Success constructor
+    public ApiResponse(T data) {
+        this.success = true;
+        this.data = data;
+        this.timestamp = LocalDateTime.now();
+    }
+
+    // Error constructor
+    public ApiResponse(ErrorInfo error) {
+        this.success = false;
+        this.error = error;
+        this.timestamp = LocalDateTime.now();
+    }
+
+    // Convenience for not-found (treat as error with specific code)
+    public static <T> ApiResponse<T> notFound(String message) {
+        return new ApiResponse<>(new ErrorInfo("NOT_FOUND", message));
+    }
+}
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+ class ErrorInfo {
+    private String code; // e.g., "VALIDATION_ERROR", "TIMEOUT"
+    private String message;
+    private List<String> details; // For multi-field errors
+
+    public ErrorInfo(String code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+}
