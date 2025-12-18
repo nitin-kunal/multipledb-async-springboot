@@ -1,0 +1,38 @@
+public CompletableFuture<String> aggregateFromOneSource(String sourceSystem, String metaTransId) {
+    CompletableFuture<String> f1 = asyncService.fetchAsync(sourceSystem, metaTransId);
+    log.debug("submitted async fetch (service1); sourceSystem={} metaTransId={}", sourceSystem, metaTransId);
+
+    CompletableFuture<String> f2 = asyncService.fetchAsyncService2(sourceSystem, metaTransId);
+    log.debug("submitted async fetch (service2); sourceSystem={} metaTransId={}", sourceSystem, metaTransId);
+
+    CompletableFuture<Void> all = CompletableFuture.allOf(f1, f2)
+            .orTimeout(5, TimeUnit.SECONDS);
+
+    CompletableFuture<String> result = all.thenApply(v -> {
+        log.debug("allOf completed; aggregating results; sourceSystem={} metaTransId={}", sourceSystem, metaTransId);
+
+        String r1 = f1.join();
+        String r2 = f2.join();
+
+        String aggregated = "aggregateResult: " + r1 + "," + r2;
+        log.info("aggregation successful; sourceSystem={} metaTransId={} result={}", sourceSystem, metaTransId, aggregated);
+
+        return aggregated;
+    });
+
+    result.whenComplete((res, ex) -> {
+        if (ex != null) {
+            Throwable cause = ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
+            if (cause instanceof TimeoutException) {
+                log.error("aggregateFromOneSource timed out (5s); sourceSystem={} metaTransId={}", sourceSystem, metaTransId);
+            } else {
+                log.error("aggregateFromOneSource failed; sourceSystem={} metaTransId={} cause={}", 
+                          sourceSystem, metaTransId, cause.toString(), cause);
+            }
+        } else {
+            log.info("aggregateFromOneSource completed successfully; sourceSystem={} metaTransId={}", sourceSystem, metaTransId);
+        }
+    });
+
+    return result;
+}
